@@ -5,6 +5,7 @@ import {
   GraphQLString,
   GraphQLList,
   GraphQLInt,
+  GraphQLNonNull,
 } from "graphql";
 import { Project } from "../models/Project.js";
 import { Client } from "../models/Client.js";
@@ -63,6 +64,46 @@ const RootQuery = new GraphQLObjectType({
   }),
 });
 
+// mutations
+const mutation = new GraphQLObjectType({
+  name: "Mutation",
+  fields: {
+    addClient: {
+      type: ClientType,
+      args: {
+        name: { type: GraphQLNonNull(GraphQLString) },
+        email: { type: GraphQLNonNull(GraphQLString) },
+        phone: { type: GraphQLNonNull(GraphQLString) },
+      },
+      resolve(parent, args) {
+        const newClient = new Client({
+          name: args.name,
+          email: args.email,
+          phone: args.phone,
+        });
+
+        return newClient.save();
+      },
+    },
+    deleteClient: {
+      type: ClientType,
+      args: { id: { type: GraphQLNonNull(GraphQLID) } }, // Use GraphQLID for the ID argument
+      async resolve(parent, args) {
+        try {
+          const client = await Client.findByIdAndDelete(args.id); // Find and remove the client by ID
+          if (!client) {
+            throw new Error("Client not found");
+          }
+          return client; // Return the deleted client
+        } catch (error) {
+          throw new Error("Failed to delete client: " + error.message);
+        }
+      },
+    },
+  },
+});
+
 export default new GraphQLSchema({
   query: RootQuery,
+  mutation,
 });
