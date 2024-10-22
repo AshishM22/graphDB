@@ -6,6 +6,7 @@ import {
   GraphQLList,
   GraphQLInt,
   GraphQLNonNull,
+  GraphQLEnumType,
 } from "graphql";
 import { Project } from "../models/Project.js";
 import { Client } from "../models/Client.js";
@@ -64,6 +65,15 @@ const RootQuery = new GraphQLObjectType({
   }),
 });
 
+const ProjectStatusEnum = new GraphQLEnumType({
+  name: "ProjectEnum",
+  values: {
+    NOT_STARTED: { value: "NOT STARTED" },
+    IN_PROGRESS: { value: "IN PROGRESS" },
+    COMPLETED: { value: "COMPLETED" }, // Fix the case to match other values
+  },
+});
+
 // mutations
 const mutation = new GraphQLObjectType({
   name: "Mutation",
@@ -98,6 +108,61 @@ const mutation = new GraphQLObjectType({
         } catch (error) {
           throw new Error("Failed to delete client: " + error.message);
         }
+      },
+    },
+
+    addProject: {
+      type: ProjectType,
+      args: {
+        name: { type: GraphQLNonNull(GraphQLString) },
+        description: { type: GraphQLString },
+        status: {
+          type: GraphQLNonNull(ProjectStatusEnum),
+        },
+        clientId: { type: GraphQLNonNull(GraphQLID) },
+      },
+      resolve(parent, args) {
+        const newProject = new Project({
+          name: args?.name,
+          description: args?.description,
+          status: args?.status,
+          clientId: args.clientId,
+        });
+
+        return newProject.save();
+      },
+    },
+
+    deleteProject: {
+      type: ProjectType,
+      args: { id: { type: GraphQLNonNull(GraphQLID) } },
+      resolve(parent, args) {
+        if (!args.id) return null;
+
+        return Project.findByIdAndDelete(args.id);
+      },
+    },
+
+    updateProject: {
+      type: ProjectType,
+      args: {
+        id: { type: GraphQLNonNull(GraphQLID) },
+        name: { type: GraphQLString },
+        description: { type: GraphQLString },
+        status: { type: ProjectStatusEnum },
+      },
+      resolve(parent, args) {
+        return Project.findByIdAndUpdate(
+          args.id,
+          {
+            $set: {
+              name: args.name,
+              description: args.description,
+              status: args.status,
+            },
+          },
+          { new: true }
+        );
       },
     },
   },
